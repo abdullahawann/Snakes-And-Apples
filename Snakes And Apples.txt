@@ -1,0 +1,849 @@
+[org 0x0100]
+
+jmp start
+
+;------------------------------------------------------------------------------------------------------------------------------------------
+
+strTitle: db "SNAKES AND APPLES", 0
+strline: db "-------------------", 0
+strStartGame: db "Press Enter key to Start the Game", 0
+strgamescr2: db "Press m for Main Menu or Press esc to Exit", 0
+strExitGame: db "Press Esc key to Exit the Game", 0
+strCreator: db "Created by Abdullah Awan.", 0
+strScore: db "Your score is : ", 0
+strplayAgain: db "Do you want to play Again ? press 1=Yes or 0=No", 0
+invalidInput: db "Invalid Input", 0
+strYouDied: db "You Died !", 0
+strPoints: db "Score : ", 0
+strexit: db "You Exited the Game", 0
+score: dw 0
+randNum: dw 1
+s_size: dw 2
+life: db 1
+snake: dw 484
+apple: dw 880
+snake2: dw 0
+leftborder: dw 320, 480, 640, 800, 960, 1120, 1280, 1440, 1600, 1760, 1920, 2080, 2240, 2400, 2560, 2720, 2880, 3040, 3200, 3360, 3520, 3680, 3840
+rightborder: dw 478, 638, 798, 958, 1118, 1278, 1438, 1598, 1758, 1918, 2078, 2238, 2398, 2558, 2718, 2878, 3038, 3198, 3358, 3518, 3678, 3838
+
+;------------------------------------------------------------------------------------------------------------------------------------------
+
+clearscr:
+push es
+push ax
+push di
+mov ax,0xb800
+mov es,ax
+mov di,0
+
+next:
+mov word[es:di],0x0720
+add di,2
+cmp di,4000
+jne next
+pop di
+pop ax
+pop es
+
+ret
+
+;------------------------------------------------------------------------------------------------------------------------------------------
+
+strlen:
+push bp
+mov bp,sp
+push es
+push cx
+push di
+les di, [bp+4]
+mov cx, 0xffff
+xor al, al
+repne scasb
+mov ax, 0xffff 
+sub ax, cx 
+dec ax
+pop di
+pop cx
+pop es
+pop bp
+
+ret 4
+
+;------------------------------------------------------------------------------------------------------------------------------------------
+
+printstr:
+push bp
+mov bp, sp
+push es
+push ax
+push cx
+push si
+push di
+push ds
+mov ax, [bp+4]
+push ax 
+call strlen
+cmp ax, 0
+jz exit
+mov cx, ax 
+mov ax, 0xb800
+mov es, ax 
+mov al, 80 
+mul byte [bp+8]
+add ax, [bp+10]
+shl ax, 1 
+mov di, ax 
+mov si, [bp+4] 
+mov ah, [bp+6]
+cld
+
+nextchar: 
+lodsb 
+stosw
+loop nextchar
+
+exit: 
+pop di
+pop si
+pop cx
+pop ax
+pop es
+pop bp
+
+ret 8
+
+;----------------------------------------------------------------------------------------------------------------------------------------
+
+drawborders:
+push ax
+push bx
+push dx
+push cx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov di, 160
+mov al, 0x20
+mov ah, 0x77
+
+nextb:
+mov [es:di], ax
+add di, 2
+cmp di, 318
+jne nextb
+mov ax, 0xb800
+mov es, ax
+mov di, 318
+mov al, 0x20
+mov ah, 0x77
+
+nextb1:
+mov [es:di], ax
+add di, 160
+cmp di, 3998
+jne nextb1
+mov ax, 0xb800
+mov es, ax
+mov di, 3840
+mov al, 0x20
+mov ah, 0x77
+
+nextb2:
+mov [es:di], ax
+add di, 2
+cmp di, 4000
+jne nextb2
+mov ax, 0xb800
+mov es, ax
+mov di, 320
+mov al, 0x20
+mov ah, 0x77
+
+nextb3:
+mov [es:di], ax
+add di, 160
+cmp di, 4000
+jne nextb3
+
+pop si
+pop di
+pop cx
+pop dx
+pop bx
+pop ax
+ret
+
+;-----------------------------------------------------------------------------------------------------------------------------
+
+printFinalSc:
+push ax
+push bx
+push cx
+push dx
+push di
+mov ax, 0xb800
+mov es, ax
+mov ax, [score]
+mov bx, 10
+mov cx, 0
+
+next_digitF: 
+mov dx, 0
+div bx 
+add dl, 0x30
+push dx
+inc cx
+cmp ax, 0
+jnz next_digitF
+mov di, 1852
+
+nextpositionF: 
+pop dx 
+mov dh, 0x08
+mov [es:di], dx
+add di, 2
+loop nextpositionF
+
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+
+;-----------------------------------------------------------------------------------------------------------------------------
+
+printScore:
+push ax
+push bx
+push cx
+push dx
+push di
+mov ax, 0xb800
+mov es, ax
+mov ax, [score]
+mov bx, 10
+mov cx, 0
+
+next_digit: 
+mov dx, 0
+div bx 
+add dl, 0x30
+push dx
+inc cx
+cmp ax, 0
+jnz next_digit
+mov di, 18
+
+nextposition: 
+pop dx 
+mov dh, 0x09
+mov [es:di], dx
+add di, 2
+loop nextposition
+
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+
+;-----------------------------------------------------------------------------------------------------------------------------
+
+updateSnakesize:
+push ax
+push si
+push di
+mov ax, 0xb800
+mov es, ax
+add word[s_size], 2
+mov di, [snake]
+mov word[snake2], di
+sub word[snake2], s_size
+mov si, [snake2]
+mov al, 0x2A
+mov ah, 0x02
+u_l1:
+mov [es:si], ax
+add si, 2
+cmp si, [snake]
+jne u_l1
+
+pop di
+pop si
+pop ax
+ret
+
+;-----------------------------------------------------------------------------------------------------------------------------
+
+sound:
+push ax
+push bx
+push cx
+mov al,182
+out 43h,al
+mov ax,4560	
+out 42h,al
+mov al,ah
+out 42h,al
+in al,61h	
+or al,00000011b
+out 61h,al
+mov bx,25
+
+pause1:
+mov cx,6000
+
+pause2:
+dec cx
+jne pause2
+dec bx
+jne pause1
+in al,61h	
+and al,11111100b
+out 61h,al
+	
+pop cx
+pop bx
+pop ax
+ret 
+
+;-----------------------------------------------------------------------------------------------------------------------------
+
+GenRandApple:
+push ax
+push di
+call sound
+call printScore
+mov ax, 0xb800
+mov es, ax
+cmp word[apple], 3708
+jg updateApple
+jmp noUpdate
+
+updateApple:
+mov word[apple], 880
+
+noUpdate:
+mov di, [apple]
+mov al, 0x6F
+mov ah, 0x04
+mov [es:di], ax      
+
+pop di
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+checkrightborder:
+push ax
+push bx
+push cx
+push si
+push di
+mov cx, 44
+mov si, 0
+mov bx, [snake]
+
+loopright:
+cmp bx, [rightborder + si]
+je endcheckright
+add si, 2
+sub cx, 2
+cmp cx, 0
+jne loopright
+jmp retcheckrightborder
+
+endcheckright:
+mov byte[life], 0
+jmp retcheckrightborder
+
+retcheckrightborder:
+pop di
+pop si
+pop cx
+pop bx
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+checkleftborder:
+push ax
+push bx
+push cx
+push si
+push di
+mov cx, 46
+mov si, 0
+mov bx, [snake]
+
+loopleft:
+cmp bx, [leftborder + si]
+je endcheckleft
+add si, 2
+sub cx, 2
+cmp cx, 0
+jne loopleft
+jmp retcheckleftborder
+
+endcheckleft:
+mov byte[life], 0
+jmp retcheckleftborder
+
+retcheckleftborder:
+pop di
+pop si
+pop cx
+pop bx
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+MovUp:
+push ax
+push bx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov si, [snake]
+mov al, 0x20
+mov ah, 0x07
+mov [es:si], ax
+sub word[snake], 160
+mov di, [snake]
+cmp di, 318
+jbe endUp
+mov al, 0x2A
+mov ah, 0x02
+mov [es:di], ax
+cmp di, [apple]
+je appleUp
+jmp retUp
+
+appleUp:
+add word[score], 10
+add word[apple], 404
+call GenRandApple
+jmp retUp
+
+endUp:
+mov byte[life], 0
+
+retUp:
+pop si 
+pop di
+pop bx
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+MovDown:
+push ax
+push bx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov si, [snake]
+mov al, 0x20
+mov ah, 0x07
+mov [es:si], ax
+add word[snake], 160
+mov di, [snake]
+cmp di, 3840
+jge endDown
+mov al, 0x2A
+mov ah, 0x02
+mov [es:di], ax
+cmp di, [apple]
+je appleDown
+jmp retDown
+
+appleDown:
+add word[score], 10
+add word[apple], 404
+call GenRandApple
+jmp retDown
+
+endDown:
+mov byte[life], 0
+
+retDown:
+pop si 
+pop di
+pop bx
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+MovRight:
+push ax
+push bx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov si, [snake]
+mov al, 0x20
+mov ah, 0x07
+mov [es:si], ax
+add word[snake], 2
+mov di, [snake]
+
+call checkrightborder
+cmp byte[life], 0
+je endRight
+
+mov al, 0x2A
+mov ah, 0x02
+mov [es:di], ax
+cmp di, [apple]
+je appleRight
+jmp retRight
+
+appleRight:
+add word[score], 10
+add word[apple], 404
+call GenRandApple
+jmp retRight
+
+endRight:
+mov byte[life], 0
+
+retRight:
+pop si 
+pop di
+pop bx
+pop ax
+ret
+
+;-----------------------------------------------------------------------------------------------------------------------------------------------
+
+MovLeft:
+push ax
+push bx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov si, [snake]
+mov al, 0x20
+mov ah, 0x07
+mov [es:si], ax
+sub word[snake], 2
+mov di, [snake]
+
+call checkleftborder
+cmp byte[life], 0
+je endLeft
+
+mov al, 0x2A
+mov ah, 0x02
+mov [es:di], ax
+cmp di, [apple]
+je appleLeft
+jmp retLeft
+
+appleLeft:
+add word[score], 10
+add word[apple], 404
+call GenRandApple
+jmp retLeft
+
+endLeft:
+mov byte[life], 0
+
+retLeft:
+pop si 
+pop di
+pop bx
+pop ax
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+drawSnake:
+push ax
+push bx
+push cx
+push dx
+push di
+push si
+mov ax, 0xb800
+mov es, ax
+mov di, [snake]
+mov al, 0x2A
+mov ah, 0x02
+mov [es:di], ax
+
+loop_1:
+push dx
+push ax
+push bx
+mov dl, 0
+mov dh, 24
+mov ah, 2
+mov bh, 0
+int 10h
+pop bx
+pop ax
+pop dx
+
+cmp byte[life], 0
+je end
+mov ah, 1h
+int 21h
+cmp al, 0x48
+je mov_up
+cmp al, 0x50
+je mov_down
+cmp al, 0x4D
+je mov_right
+cmp al, 0x4B
+je mov_left
+jmp loop_1
+
+mov_down:
+call MovDown
+jmp loop_1
+
+mov_up:
+call MovUp
+jmp loop_1
+
+mov_right:
+call MovRight
+jmp loop_1
+
+mov_left:
+call MovLeft
+jmp loop_1
+
+end:
+pop si
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+call screen2
+
+ret
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+screen2:
+call clearscr
+mov ax, 34
+push ax
+mov ax, 9
+push ax
+mov ax, 11
+push ax
+mov ax, strYouDied
+push ax
+call printstr
+mov ax, 30
+push ax
+mov ax, 11
+push ax
+mov ax, 11
+push ax
+mov ax, strScore
+push ax
+call printstr
+call printFinalSc
+mov ax, 16
+push ax
+mov ax, 13
+push ax
+mov ax, 11
+push ax
+mov ax, strplayAgain
+push ax
+call printstr
+call checkKeyPressed
+
+ret 24
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+printgamescr:
+mov ax, 0
+push ax
+mov ax, 0
+push ax
+mov ax, 9
+push ax
+mov ax, strPoints
+push ax
+call printstr
+call drawborders
+call GenRandApple
+call printScore
+call drawSnake
+
+ret 8
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+printendscreen:
+mov ax, 30
+push ax
+mov ax, 10
+push ax
+mov ax, 9
+push ax
+mov ax, strexit
+push ax
+call printstr
+
+ret 8
+
+;---------------------------------------------------------------------------------------------------------------------------------------------
+
+invalid_input:
+call clearscr
+mov ax, 30
+push ax
+mov ax, 9
+push ax
+mov ax, 9
+push ax
+mov ax, invalidInput
+push ax
+call printstr
+mov ax, 17
+push ax
+mov ax, 11
+push ax
+mov ax, 9
+push ax
+mov ax, strgamescr2
+push ax
+call printstr
+call checkKeyPressed
+
+ret 8
+
+;----------------------------------------------------------------------------------------------------------------------------------------------
+
+checkKeyPressed:
+mov ah, 1h
+int 21h
+cmp al, 0x0D
+je nextscr
+cmp al, 0x1B
+je exitscr
+cmp al, 0x30
+je exitscr
+cmp al, 0x31
+je start_again
+cmp al, 0x6D
+je menu
+
+invalid:
+mov word[snake], 484
+mov word[score], 0
+mov word[s_size], 2
+mov word[apple], 880
+mov byte[life], 1
+call invalid_input
+jmp returnKey
+
+menu:
+call MainMenu
+jmp returnKey
+
+nextscr:
+call clearscr
+call printgamescr
+jmp returnKey
+
+exitscr:
+call clearscr
+call printendscreen
+jmp returnKey
+
+start_again:
+call clearscr
+mov word[snake], 484
+mov word[score], 0
+mov word[s_size], 2
+mov word[apple], 880
+mov byte[life], 1
+call printgamescr
+
+returnKey:
+ret
+
+;-------------------------------------------------------------------------------------------------------------------------------------------------
+
+MainMenu:
+call clearscr
+
+mov ax, 30
+push ax
+mov ax, 1
+push ax
+mov ax, 11
+push ax
+mov ax, strTitle
+push ax
+call printstr
+mov ax, 29
+push ax
+mov ax, 2
+push ax
+mov ax, 11
+push ax
+mov ax, strline
+push ax
+call printstr
+mov ax, 54
+push ax
+mov ax, 22
+push ax
+mov ax, 15
+push ax
+mov ax, strCreator
+push ax
+call printstr
+mov ax, 23
+push ax
+mov ax, 10
+push ax
+mov ax, 6
+push ax
+mov ax, strStartGame
+push ax
+call printstr
+mov ax, 25
+push ax
+mov ax, 12
+push ax
+mov ax, 6
+push ax
+mov ax, strExitGame
+push ax
+call printstr
+call checkKeyPressed
+
+ret 40
+
+;-------------------------------------------------------------------------------------------------------------------------------------------------
+
+start:
+ 
+call MainMenu
+
+mov ax, 0x4c00 
+int 0x21
